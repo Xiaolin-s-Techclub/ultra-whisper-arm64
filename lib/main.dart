@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
+import 'models/settings.dart';
 import 'services/app_service.dart';
 import 'services/audio_service.dart';
 import 'services/settings_service.dart';
@@ -13,6 +14,8 @@ import 'services/hotkey_service.dart';
 import 'services/paste_service.dart';
 import 'services/audio_cue_service.dart';
 import 'services/settings_window_service.dart';
+import 'services/volume_control_service.dart';
+import 'services/status_bar_service.dart';
 import 'widgets/app_content.dart';
 import 'windows/settings_window_entry.dart';
 
@@ -67,6 +70,8 @@ class _UltraWhisperAppState extends State<UltraWhisperApp>
     final pasteService = PasteService();
     final audioCueService = AudioCueService.instance;
     final settingsWindowService = SettingsWindowService();
+    final volumeControlService = VolumeControlService();
+    final statusBarService = StatusBarService();
 
     _appService = AppService(
       audioService: audioService,
@@ -76,6 +81,8 @@ class _UltraWhisperAppState extends State<UltraWhisperApp>
       pasteService: pasteService,
       audioCueService: audioCueService,
       settingsWindowService: settingsWindowService,
+      volumeControlService: volumeControlService,
+      statusBarService: statusBarService,
     );
 
     // Initialize audio cue service
@@ -189,6 +196,19 @@ class _UltraWhisperAppState extends State<UltraWhisperApp>
         // Settings window notifies that it's closing
         // Close it from the main window and update state
         await _appService.settingsWindowService.closeSettingsWindow();
+        return true;
+
+      case 'get_settings':
+        // Settings window requests current settings
+        debugPrint('Settings window requesting current settings');
+        return _appService.settings.toJson();
+
+      case 'save_settings':
+        // Settings window wants to save new settings
+        final settingsJson = call.arguments as Map<String, dynamic>;
+        debugPrint('Settings window saving new settings');
+        final newSettings = Settings.fromJson(settingsJson);
+        _appService.updateSettings(newSettings);
         return true;
 
       default:

@@ -36,6 +36,12 @@ enum Language {
   japanese
 }
 
+enum DockVisibilityMode {
+  menuBarOnly,
+  dockOnly,
+  both
+}
+
 @JsonSerializable()
 class Settings {
   // General settings
@@ -45,6 +51,8 @@ class Settings {
   final String inputDevice;
   final int sampleRate;
   final int chunkSizeMs;
+  final bool duckVolumeDuringRecording;
+  final double volumeDuckPercentage;
 
   // Model settings
   final WhisperModel model;
@@ -65,6 +73,7 @@ class Settings {
   final bool smartCapitalization;
   final bool punctuation;
   final bool disfluencyCleanup;
+  final List<String> customTerms; // Custom dictionary for domain-specific terms
 
   // UI settings (not exposed in UI, used internally)
   final double overlayWidth;
@@ -77,6 +86,7 @@ class Settings {
   final double borderOpacity;
   final bool alwaysOnTop;
   final bool bringToFrontDuringRecording;
+  final DockVisibilityMode dockVisibilityMode;
   
   const Settings({
     this.defaultAction = PasteAction.paste,
@@ -84,6 +94,8 @@ class Settings {
     this.inputDevice = 'default',
     this.sampleRate = 16000,
     this.chunkSizeMs = 30,
+    this.duckVolumeDuringRecording = true,
+    this.volumeDuckPercentage = 0.1,
 
     this.model = WhisperModel.largeV3Turbo,
     this.device = ComputeDevice.auto,
@@ -100,6 +112,7 @@ class Settings {
     this.smartCapitalization = true,
     this.punctuation = true,
     this.disfluencyCleanup = true,
+    this.customTerms = const [],
 
     this.overlayWidth = 360.0,
     this.overlayHeight = 100.0,
@@ -110,6 +123,7 @@ class Settings {
     this.borderOpacity = 0.2,
     this.alwaysOnTop = false,
     this.bringToFrontDuringRecording = false,
+    this.dockVisibilityMode = DockVisibilityMode.menuBarOnly,
   });
   
   factory Settings.fromJson(Map<String, dynamic> json) => _$SettingsFromJson(json);
@@ -120,6 +134,8 @@ class Settings {
     String? inputDevice,
     int? sampleRate,
     int? chunkSizeMs,
+    bool? duckVolumeDuringRecording,
+    double? volumeDuckPercentage,
     WhisperModel? model,
     ComputeDevice? device,
     ComputeType? computeType,
@@ -132,6 +148,7 @@ class Settings {
     bool? smartCapitalization,
     bool? punctuation,
     bool? disfluencyCleanup,
+    List<String>? customTerms,
     double? overlayWidth,
     double? overlayHeight,
     double? glassBlurRadius,
@@ -140,12 +157,15 @@ class Settings {
     double? borderOpacity,
     bool? alwaysOnTop,
     bool? bringToFrontDuringRecording,
+    DockVisibilityMode? dockVisibilityMode,
   }) {
     return Settings(
       defaultAction: defaultAction ?? this.defaultAction,
       inputDevice: inputDevice ?? this.inputDevice,
       sampleRate: sampleRate ?? this.sampleRate,
       chunkSizeMs: chunkSizeMs ?? this.chunkSizeMs,
+      duckVolumeDuringRecording: duckVolumeDuringRecording ?? this.duckVolumeDuringRecording,
+      volumeDuckPercentage: volumeDuckPercentage ?? this.volumeDuckPercentage,
       model: model ?? this.model,
       device: device ?? this.device,
       computeType: computeType ?? this.computeType,
@@ -158,6 +178,7 @@ class Settings {
       smartCapitalization: smartCapitalization ?? this.smartCapitalization,
       punctuation: punctuation ?? this.punctuation,
       disfluencyCleanup: disfluencyCleanup ?? this.disfluencyCleanup,
+      customTerms: customTerms ?? this.customTerms,
       overlayWidth: overlayWidth ?? this.overlayWidth,
       overlayHeight: overlayHeight ?? this.overlayHeight,
       glassBlurRadius: glassBlurRadius ?? this.glassBlurRadius,
@@ -166,6 +187,7 @@ class Settings {
       borderOpacity: borderOpacity ?? this.borderOpacity,
       alwaysOnTop: alwaysOnTop ?? this.alwaysOnTop,
       bringToFrontDuringRecording: bringToFrontDuringRecording ?? this.bringToFrontDuringRecording,
+      dockVisibilityMode: dockVisibilityMode ?? this.dockVisibilityMode,
     );
   }
 }

@@ -13,6 +13,9 @@ Settings _$SettingsFromJson(Map<String, dynamic> json) => Settings(
   inputDevice: json['inputDevice'] as String? ?? 'default',
   sampleRate: (json['sampleRate'] as num?)?.toInt() ?? 16000,
   chunkSizeMs: (json['chunkSizeMs'] as num?)?.toInt() ?? 30,
+  duckVolumeDuringRecording: json['duckVolumeDuringRecording'] as bool? ?? true,
+  volumeDuckPercentage:
+      (json['volumeDuckPercentage'] as num?)?.toDouble() ?? 0.1,
   model:
       $enumDecodeNullable(_$WhisperModelEnumMap, json['model']) ??
       WhisperModel.largeV3Turbo,
@@ -33,6 +36,11 @@ Settings _$SettingsFromJson(Map<String, dynamic> json) => Settings(
   smartCapitalization: json['smartCapitalization'] as bool? ?? true,
   punctuation: json['punctuation'] as bool? ?? true,
   disfluencyCleanup: json['disfluencyCleanup'] as bool? ?? true,
+  customTerms:
+      (json['customTerms'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ??
+      const [],
   overlayWidth: (json['overlayWidth'] as num?)?.toDouble() ?? 360.0,
   overlayHeight: (json['overlayHeight'] as num?)?.toDouble() ?? 100.0,
   glassBlurRadius: (json['glassBlurRadius'] as num?)?.toDouble() ?? 20.0,
@@ -42,6 +50,12 @@ Settings _$SettingsFromJson(Map<String, dynamic> json) => Settings(
   alwaysOnTop: json['alwaysOnTop'] as bool? ?? false,
   bringToFrontDuringRecording:
       json['bringToFrontDuringRecording'] as bool? ?? false,
+  dockVisibilityMode:
+      $enumDecodeNullable(
+        _$DockVisibilityModeEnumMap,
+        json['dockVisibilityMode'],
+      ) ??
+      DockVisibilityMode.menuBarOnly,
 );
 
 Map<String, dynamic> _$SettingsToJson(Settings instance) => <String, dynamic>{
@@ -49,6 +63,8 @@ Map<String, dynamic> _$SettingsToJson(Settings instance) => <String, dynamic>{
   'inputDevice': instance.inputDevice,
   'sampleRate': instance.sampleRate,
   'chunkSizeMs': instance.chunkSizeMs,
+  'duckVolumeDuringRecording': instance.duckVolumeDuringRecording,
+  'volumeDuckPercentage': instance.volumeDuckPercentage,
   'model': _$WhisperModelEnumMap[instance.model]!,
   'device': _$ComputeDeviceEnumMap[instance.device]!,
   'computeType': _$ComputeTypeEnumMap[instance.computeType]!,
@@ -61,6 +77,7 @@ Map<String, dynamic> _$SettingsToJson(Settings instance) => <String, dynamic>{
   'smartCapitalization': instance.smartCapitalization,
   'punctuation': instance.punctuation,
   'disfluencyCleanup': instance.disfluencyCleanup,
+  'customTerms': instance.customTerms,
   'overlayWidth': instance.overlayWidth,
   'overlayHeight': instance.overlayHeight,
   'glassBlurRadius': instance.glassBlurRadius,
@@ -69,6 +86,8 @@ Map<String, dynamic> _$SettingsToJson(Settings instance) => <String, dynamic>{
   'borderOpacity': instance.borderOpacity,
   'alwaysOnTop': instance.alwaysOnTop,
   'bringToFrontDuringRecording': instance.bringToFrontDuringRecording,
+  'dockVisibilityMode':
+      _$DockVisibilityModeEnumMap[instance.dockVisibilityMode]!,
 };
 
 const _$PasteActionEnumMap = {
@@ -103,4 +122,10 @@ const _$LanguageEnumMap = {
   Language.auto: 'auto',
   Language.english: 'english',
   Language.japanese: 'japanese',
+};
+
+const _$DockVisibilityModeEnumMap = {
+  DockVisibilityMode.menuBarOnly: 'menuBarOnly',
+  DockVisibilityMode.dockOnly: 'dockOnly',
+  DockVisibilityMode.both: 'both',
 };

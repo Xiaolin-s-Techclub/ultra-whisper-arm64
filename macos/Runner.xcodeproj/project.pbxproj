@@ -25,6 +25,10 @@
 		335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 335BBD1A22A9A15E00E9071D /* GeneratedPluginRegistrant.swift */; };
 		33CC10F12044A3C60003C045 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CC10F02044A3C60003C045 /* AppDelegate.swift */; };
 		AA1234567890ABCD12345678 /* KeystrokeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1234567890ABCD12345679 /* KeystrokeHandler.swift */; };
+		734E1CC7523941398B230BD8 /* VolumeController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55F762538C2B4B7083AF09E6 /* VolumeController.swift */; };
+		C62D6CD9CC5345789244BC0E /* VolumeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A541FA6810428EAB507182 /* VolumeHandler.swift */; };
+		BB2345678901BCDE23456789 /* AppLifecycleHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB2345678901BCDE23456790 /* AppLifecycleHandler.swift */; };
+		CC3456789012CDEF34567891 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3456789012CDEF34567892 /* StatusBarController.swift */; };
 		33CC10F32044A3C60003C045 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 33CC10F22044A3C60003C045 /* Assets.xcassets */; };
 		33CC10F62044A3C60003C045 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 33CC10F42044A3C60003C045 /* MainMenu.xib */; };
 		33CC11132044BFA00003C045 /* MainFlutterWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CC11122044BFA00003C045 /* MainFlutterWindow.swift */; };
@@ -71,6 +75,10 @@
 		33CC10ED2044A3C60003C045 /* UltraWhisper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = UltraWhisper.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		33CC10F02044A3C60003C045 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		AA1234567890ABCD12345679 /* KeystrokeHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeystrokeHandler.swift; sourceTree = "<group>"; };
+		55F762538C2B4B7083AF09E6 /* VolumeController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumeController.swift; sourceTree = "<group>"; };
+		F1A541FA6810428EAB507182 /* VolumeHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumeHandler.swift; sourceTree = "<group>"; };
+		BB2345678901BCDE23456790 /* AppLifecycleHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLifecycleHandler.swift; sourceTree = "<group>"; };
+		CC3456789012CDEF34567892 /* StatusBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
 		33CC10F22044A3C60003C045 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Runner/Assets.xcassets; sourceTree = "<group>"; };
 		33CC10F52044A3C60003C045 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/MainMenu.xib; sourceTree = "<group>"; };
 		33CC10F72044A3C60003C045 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = Runner/Info.plist; sourceTree = "<group>"; };
@@ -193,6 +201,10 @@
 			children = (
 				33CC10F02044A3C60003C045 /* AppDelegate.swift */,
 				AA1234567890ABCD12345679 /* KeystrokeHandler.swift */,
+				55F762538C2B4B7083AF09E6 /* VolumeController.swift */,
+				F1A541FA6810428EAB507182 /* VolumeHandler.swift */,
+				BB2345678901BCDE23456790 /* AppLifecycleHandler.swift */,
+				CC3456789012CDEF34567892 /* StatusBarController.swift */,
 				33CC11122044BFA00003C045 /* MainFlutterWindow.swift */,
 				33E51913231747F40026EE4D /* DebugProfile.entitlements */,
 				33E51914231749380026EE4D /* Release.entitlements */,
@@ -458,6 +470,10 @@
 				33CC11132044BFA00003C045 /* MainFlutterWindow.swift in Sources */,
 				33CC10F12044A3C60003C045 /* AppDelegate.swift in Sources */,
 				AA1234567890ABCD12345678 /* KeystrokeHandler.swift in Sources */,
+				734E1CC7523941398B230BD8 /* VolumeController.swift in Sources */,
+				C62D6CD9CC5345789244BC0E /* VolumeHandler.swift in Sources */,
+				BB2345678901BCDE23456789 /* AppLifecycleHandler.swift in Sources */,
+				CC3456789012CDEF34567891 /* StatusBarController.swift in Sources */,
 				335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

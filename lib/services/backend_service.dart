@@ -45,12 +45,17 @@ class BackendService {
       final pythonPath = await _getPythonPath();
       AppLogger.debug('Python path: $pythonPath');
 
+      // Set up environment with library paths for GGML dependencies
+      final environment = await _getBackendEnvironment();
+      AppLogger.debug('Backend environment: $environment');
+
       // Start the Python backend process with fixed port 8082 (v3 uses 8082, v2 uses 8081)
       AppLogger.debug('Starting backend process...');
       _backendProcess = await Process.start(
         pythonPath,
         [backendPath, '--port', '8082', '--host', '127.0.0.1'],
         mode: ProcessStartMode.normal,
+        environment: environment,
       );
 
       if (_backendProcess == null) {
@@ -127,6 +132,44 @@ class BackendService {
     AppLogger.debug('Using system Python: python3');
     return 'python3';
   }
+
+  Future<Map<String, String>> _getBackendEnvironment() async {
+    final environment = <String, String>{};
+
+    if (!kDebugMode) {
+      // Production: Set DYLD_LIBRARY_PATH for all whisper.cpp and GGML dependencies
+      final executablePath = Platform.resolvedExecutable;
+      final executableDir = File(executablePath).parent.path;
+      final backendBase = '$executableDir/../Resources/backend/whisper.cpp/build';
+
+      // Include all library directories
+      final libraryPaths = [
+        '$backendBase/src',                          // libwhisper
+        '$backendBase/ggml/src',                     // main GGML libs
+        '$backendBase/ggml/src/ggml-blas',          // GGML BLAS
+        '$backendBase/ggml/src/ggml-metal',         // GGML Metal
+      ].join(':');
+
+      environment['DYLD_LIBRARY_PATH'] = libraryPaths;
+      AppLogger.debug('Setting DYLD_LIBRARY_PATH to: $libraryPaths');
+    } else {
+      // Development: Use current working directory for library paths
+      final currentDir = Directory.current.path;
+      final backendBase = '$currentDir/backend/whisper.cpp/build';
+
+      final libraryPaths = [
+        '$backendBase/src',
+        '$backendBase/ggml/src',
+        '$backendBase/ggml/src/ggml-blas',
+        '$backendBase/ggml/src/ggml-metal',
+      ].join(':');
+
+      environment['DYLD_LIBRARY_PATH'] = libraryPaths;
+      AppLogger.debug('Setting DYLD_LIBRARY_PATH to: $libraryPaths');
+    }
+
+    return environment;
+  }
   
   Future<int?> _readPortFromBackend() async {
     if (_backendProcess == null) return null;
@@ -152,16 +195,30 @@ class BackendService {
         }
       });
       
+      // Collect stderr for better error reporting
+      final stderrBuffer = StringBuffer();
       _backendProcess!.stderr
           .transform(utf8.decoder)
           .transform(const LineSplitter())
           .listen((line) {
         AppLogger.error('Backend stderr: $line');
+        stderrBuffer.writeln(line);
+
+        // Check for common library loading errors
+        if (line.contains('dyld') || line.contains('Library not loaded') ||
+            line.contains('libggml') || line.contains('libwhisper')) {
+          AppLogger.error('⚠️ CRITICAL: Dynamic library loading error detected!');
+          AppLogger.error('This likely means GGML libraries are missing from the app bundle.');
+        }
       });
       
       // Monitor process exit
       _backendProcess!.exitCode.then((exitCode) {
         AppLogger.error('Backend process exited with code: $exitCode');
+        if (exitCode != 0 && stderrBuffer.isNotEmpty) {
+          AppLogger.error('Backend stderr output:');
+          AppLogger.error(stderrBuffer.toString());
+        }
         if (!completer.isCompleted) {
           completer.complete(null);
         }

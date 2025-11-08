@@ -64,6 +64,21 @@ pytest backend/
 ruff check backend/
 ```
 
+### Distribution & Verification Commands
+```bash
+# Build release version
+flutter build macos --release
+
+# Verify app is standalone (no external dependencies)
+./macos/Scripts/verify_standalone.sh build/macos/Build/Products/Release/UltraWhisper.app
+
+# Create distributable archive
+cd build/macos/Build/Products/Release
+zip -r UltraWhisper-v0.4.0-macOS.zip UltraWhisper.app
+```
+
+See [docs/DISTRIBUTION_TESTING.md](docs/DISTRIBUTION_TESTING.md) for comprehensive testing guide.
+
 ## Architecture Overview
 
 ### High-Level Structure
@@ -137,6 +152,39 @@ ruff check backend/
 - WebSocket communication on `127.0.0.1` with ephemeral port negotiation
 - Clipboard-preserving paste algorithm maintains original clipboard as most recent item
 - AI Handoff uses configurable keystroke sequence: `⌥Space → ⌘N → ⌃V → Enter` with 100ms delays
+
+### Standalone Distribution System
+
+The app is **completely self-contained** with no external dependencies:
+
+- **Bundled Python Runtime**: Python 3.12 (arm64) with websockets + numpy (~91 MB)
+- **whisper.cpp Libraries**: All GGML libraries with Metal GPU support (~3 MB)
+- **Whisper Model**: large-v3-turbo GGML model embedded in app (1.5 GB)
+- **Total App Size**: ~1.7 GB
+
+**Build Process** ([macos/Scripts/copy_backend.sh](macos/Scripts/copy_backend.sh)):
+1. Copies Python runtime and dependencies into app bundle
+2. Copies whisper.cpp libraries (libwhisper, GGML libs, Metal shader)
+3. Fixes library install_name paths to use `@loader_path` instead of absolute paths
+4. Verifies all critical dependencies are present
+5. Sets correct permissions
+
+**Verification** ([macos/Scripts/verify_standalone.sh](macos/Scripts/verify_standalone.sh)):
+- Checks all library dependencies use `@rpath`, `@executable_path`, or `@loader_path`
+- Verifies no external library dependencies (only system frameworks allowed)
+- Confirms all required files are bundled
+- Validates code signatures
+
+**Runtime Library Resolution** ([lib/services/backend_service.dart](lib/services/backend_service.dart)):
+- Sets `DYLD_LIBRARY_PATH` environment variable to resolve `@rpath` at runtime
+- Points to all GGML library locations within the app bundle
+- Ensures Python can find libpython3.12.dylib using `@loader_path`
+
+The app works on any macOS 13+ Apple Silicon Mac **without requiring**:
+- Xcode or development tools
+- Homebrew or package managers
+- System Python installation
+- Any external library installations
 
 ## Configuration Files
 

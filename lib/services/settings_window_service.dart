@@ -15,12 +15,13 @@ class SettingsWindowService {
     // If window is already open, just focus it
     if (_isSettingsWindowOpen && _settingsWindowController != null) {
       try {
-        _settingsWindowController!.show();
+        await _settingsWindowController!.show();
+        debugPrint('Focused existing settings window');
         return;
       } catch (e) {
         debugPrint('Failed to focus existing settings window: $e');
-        _isSettingsWindowOpen = false;
-        _settingsWindowController = null;
+        // Window might be closed, reset state and create new one
+        _markWindowClosed();
       }
     }
 
@@ -29,11 +30,10 @@ class SettingsWindowService {
       final window = await DesktopMultiWindow.createWindow('settings');
 
       // Configure the window
-      window
-        ..setFrame(const Offset(100, 100) & const Size(700, 600))
-        ..setTitle('Settings - UltraWhisper')
-        ..center()
-        ..show();
+      await window.setFrame(const Offset(100, 100) & const Size(700, 600));
+      await window.setTitle('Settings - UltraWhisper');
+      await window.center();
+      await window.show();
 
       _settingsWindowController = window;
       _settingsWindowId = window.windowId;
@@ -42,9 +42,7 @@ class SettingsWindowService {
       debugPrint('Settings window opened successfully with ID: $_settingsWindowId');
     } catch (e) {
       debugPrint('Failed to open settings window: $e');
-      _isSettingsWindowOpen = false;
-      _settingsWindowController = null;
-      _settingsWindowId = null;
+      _markWindowClosed();
     }
   }
 

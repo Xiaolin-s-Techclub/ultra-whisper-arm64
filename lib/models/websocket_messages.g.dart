@@ -66,6 +66,9 @@ PostProcessingOptions _$PostProcessingOptionsFromJson(
   smartCaps: json['smartCaps'] as bool? ?? true,
   punctuation: json['punctuation'] as bool? ?? true,
   disfluencyCleanup: json['disfluencyCleanup'] as bool? ?? true,
+  customTerms: (json['customTerms'] as List<dynamic>?)
+      ?.map((e) => e as String)
+      .toList(),
 );
 
 Map<String, dynamic> _$PostProcessingOptionsToJson(
@@ -74,6 +77,7 @@ Map<String, dynamic> _$PostProcessingOptionsToJson(
   'smartCaps': instance.smartCaps,
   'punctuation': instance.punctuation,
   'disfluencyCleanup': instance.disfluencyCleanup,
+  'customTerms': instance.customTerms,
 };
 
 EndSessionCommand _$EndSessionCommandFromJson(Map<String, dynamic> json) =>

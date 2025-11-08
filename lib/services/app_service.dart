@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:window_manager/window_manager.dart';
@@ -19,8 +20,12 @@ import 'hotkey_service.dart';
 import 'paste_service.dart';
 import 'audio_cue_service.dart';
 import 'settings_window_service.dart';
+import 'volume_control_service.dart';
+import 'status_bar_service.dart';
 
 class AppService extends ChangeNotifier {
+  static const _lifecycleChannel = MethodChannel('com.glassywhisper.app_lifecycle');
+
   final AudioService _audioService;
   final SettingsService _settingsService;
   final BackendService _backendService;
@@ -28,6 +33,8 @@ class AppService extends ChangeNotifier {
   final PasteService _pasteService;
   final AudioCueService _audioCueService;
   final SettingsWindowService _settingsWindowService;
+  final VolumeControlService _volumeControlService;
+  final StatusBarService _statusBarService;
 
   final _uuid = const Uuid();
 
@@ -51,13 +58,17 @@ class AppService extends ChangeNotifier {
     required PasteService pasteService,
     required AudioCueService audioCueService,
     required SettingsWindowService settingsWindowService,
+    required VolumeControlService volumeControlService,
+    required StatusBarService statusBarService,
   }) : _audioService = audioService,
        _settingsService = settingsService,
        _backendService = backendService,
        _hotkeyService = hotkeyService,
        _pasteService = pasteService,
        _audioCueService = audioCueService,
-       _settingsWindowService = settingsWindowService;
+       _settingsWindowService = settingsWindowService,
+       _volumeControlService = volumeControlService,
+       _statusBarService = statusBarService;
 
   Future<void> initialize() async {
     AppLogger.info('Starting AppService initialization...');
@@ -109,6 +120,14 @@ class AppService extends ChangeNotifier {
       AppLogger.debug('Connecting to backend WebSocket...');
       await _connectToBackend();
       AppLogger.success('Connected to backend');
+
+      // Apply initial Dock visibility setting
+      AppLogger.debug('Applying Dock visibility setting...');
+      await _applyDockVisibility(_settings.dockVisibilityMode);
+
+      // Set up status bar event handlers
+      AppLogger.debug('Setting up status bar event handlers...');
+      _setupStatusBarHandlers();
 
       _updateState(_state.copyWith(recordingState: RecordingState.idle));
 
@@ -341,12 +360,21 @@ class AppService extends ChangeNotifier {
 
     try {
       AppLogger.audio('Starting new recording session...');
-      
+
+      // Duck volume if enabled
+      if (_settings.duckVolumeDuringRecording) {
+        AppLogger.debug('Ducking system volume to ${(_settings.volumeDuckPercentage * 100).toStringAsFixed(0)}%');
+        await _volumeControlService.duckVolumeForRecording(
+          percentage: _settings.volumeDuckPercentage,
+          persistent: true,
+        );
+      }
+
       // Bring window to front during recording if enabled
       if (_settings.bringToFrontDuringRecording) {
         await _bringWindowToFront();
       }
-      
+
       // Play audio cue to indicate recording start
       await _audioCueService.playRecordingStartCue();
       
@@ -368,6 +396,7 @@ class AppService extends ChangeNotifier {
           smartCaps: _settings.smartCapitalization,
           punctuation: _settings.punctuation,
           disfluencyCleanup: _settings.disfluencyCleanup,
+          customTerms: _settings.customTerms.isNotEmpty ? _settings.customTerms : null,
         ),
       );
 
@@ -409,10 +438,20 @@ class AppService extends ChangeNotifier {
         ),
       );
 
+      // Update status bar to show recording state
+      await _statusBarService.setRecordingState(true);
+
       AppLogger.success('Recording started successfully!');
     } catch (e, stackTrace) {
       AppLogger.error('Failed to start recording', e);
       AppLogger.debug('Stack trace: $stackTrace');
+
+      // Restore volume if we ducked it before the error occurred
+      if (_settings.duckVolumeDuringRecording) {
+        AppLogger.debug('Restoring system volume after start error');
+        await _volumeControlService.restoreVolumeAfterRecording();
+      }
+
       _updateState(
         _state.copyWith(
           recordingState: RecordingState.error,
@@ -503,6 +542,9 @@ class AppService extends ChangeNotifier {
       AppLogger.audio('Stopping recording and processing...');
       _updateState(_state.copyWith(recordingState: RecordingState.processing));
 
+      // Update status bar to show idle state
+      await _statusBarService.setRecordingState(false);
+
       // Stop audio recording
       AppLogger.debug('Stopping audio service...');
       await _audioService.stopRecording();
@@ -534,12 +576,18 @@ class AppService extends ChangeNotifier {
     } catch (e, stackTrace) {
       AppLogger.error('Failed to stop recording', e);
       AppLogger.debug('Stack trace: $stackTrace');
-      
+
+      // Restore volume even if there was an error
+      if (_settings.duckVolumeDuringRecording) {
+        AppLogger.debug('Restoring system volume after error');
+        await _volumeControlService.restoreVolumeAfterRecording();
+      }
+
       // Send window to back even if there was an error (only if we brought it to front)
       if (_settings.bringToFrontDuringRecording) {
         await _sendWindowToBack();
       }
-      
+
       _updateState(
         _state.copyWith(
           recordingState: RecordingState.error,
@@ -577,6 +625,12 @@ class AppService extends ChangeNotifier {
 
     AppLogger.info('✅ Final transcription: $text');
 
+    // Restore system volume if it was ducked
+    if (_settings.duckVolumeDuringRecording) {
+      AppLogger.debug('Restoring system volume');
+      await _volumeControlService.restoreVolumeAfterRecording();
+    }
+
     // Send window to back before pasting if we brought it to front
     if (_settings.bringToFrontDuringRecording) {
       await _sendWindowToBack();
@@ -592,13 +646,19 @@ class AppService extends ChangeNotifier {
     _currentSessionId = null;
   }
 
-  void _handleTranscriptionError(String error) {
+  void _handleTranscriptionError(String error) async {
     _updateState(
       _state.copyWith(
         recordingState: RecordingState.error,
         errorMessage: error,
       ),
     );
+
+    // Restore volume if it was ducked
+    if (_settings.duckVolumeDuringRecording) {
+      AppLogger.debug('Restoring system volume after transcription error');
+      await _volumeControlService.restoreVolumeAfterRecording();
+    }
 
     _currentSessionId = null;
     _recordingTimer?.cancel();
@@ -652,6 +712,11 @@ class AppService extends ChangeNotifier {
       await _updateWindowAppearance(newSettings);
     }
 
+    // Update Dock visibility if it changed
+    if (oldSettings.dockVisibilityMode != newSettings.dockVisibilityMode) {
+      await _applyDockVisibility(newSettings.dockVisibilityMode);
+    }
+
     notifyListeners();
   }
 
@@ -692,6 +757,78 @@ class AppService extends ChangeNotifier {
       default:
         return WindowEffect.acrylic;
     }
+  }
+
+  Future<void> _applyDockVisibility(DockVisibilityMode mode) async {
+    try {
+      final modeString = mode.toString().split('.').last;
+      AppLogger.debug('Applying Dock visibility mode: $modeString');
+
+      await _lifecycleChannel.invokeMethod('setDockVisibility', {
+        'mode': modeString,
+      });
+
+      // Show/hide status bar based on mode
+      if (mode == DockVisibilityMode.menuBarOnly || mode == DockVisibilityMode.both) {
+        await _statusBarService.showStatusBar();
+        AppLogger.debug('Status bar shown for mode: $modeString');
+      } else if (mode == DockVisibilityMode.dockOnly) {
+        await _statusBarService.hideStatusBar();
+        AppLogger.debug('Status bar hidden for mode: $modeString');
+      }
+
+      AppLogger.success('Dock visibility mode applied: $modeString');
+    } catch (e) {
+      AppLogger.error('Failed to apply Dock visibility mode', e);
+    }
+  }
+
+  void _setupStatusBarHandlers() {
+    // Wire up status bar callbacks to app service methods
+    _statusBarService.onStartRecording = () {
+      AppLogger.info('Status bar: Start recording requested');
+      if (_state.recordingState == RecordingState.idle) {
+        startRecording();
+      }
+    };
+
+    _statusBarService.onStopRecording = () {
+      AppLogger.info('Status bar: Stop recording requested');
+      if (_state.recordingState == RecordingState.recording) {
+        stopRecording();
+      }
+    };
+
+    _statusBarService.onOpenSettings = () {
+      AppLogger.info('Status bar: Open settings requested');
+      _settingsWindowService.openSettingsWindow();
+    };
+
+    _statusBarService.onRestart = () async {
+      AppLogger.info('Status bar: Restart requested');
+      // Restart the app by cleaning up and relaunching
+      await cleanup();
+      // Platform-specific restart code would go here
+      // For now, just exit and let the system restart
+      await Future.delayed(const Duration(milliseconds: 100));
+      // This would require platform-specific implementation
+    };
+
+    _statusBarService.onCheckForUpdates = () {
+      AppLogger.info('Status bar: Check for updates requested');
+      // TODO: Implement update check functionality
+      // This is a placeholder for future Sparkle integration
+      AppLogger.warning('Update check not yet implemented');
+    };
+
+    _statusBarService.onQuit = () async {
+      AppLogger.info('Status bar: Quit requested');
+      await cleanup();
+      // Platform-specific quit
+      await Future.delayed(const Duration(milliseconds: 100));
+    };
+
+    AppLogger.success('Status bar event handlers configured');
   }
 
   void _updateState(AppState newState) {

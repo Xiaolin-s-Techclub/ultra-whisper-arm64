@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
-import '../services/settings_service.dart';
 import '../models/settings.dart';
 import '../widgets/hotkey_recorder.dart';
 
@@ -18,7 +17,6 @@ class SettingsWindowApp extends StatefulWidget {
 }
 
 class _SettingsWindowAppState extends State<SettingsWindowApp> {
-  final SettingsService _settingsService = SettingsService();
   Settings? _settings;
   bool _isLoading = true;
 
@@ -30,11 +28,22 @@ class _SettingsWindowAppState extends State<SettingsWindowApp> {
 
   Future<void> _loadSettings() async {
     try {
-      final settings = await _settingsService.loadSettings();
-      setState(() {
-        _settings = settings;
-        _isLoading = false;
-      });
+      // Request settings from main window instead of using platform channels
+      final settingsJson = await DesktopMultiWindow.invokeMethod(0, 'get_settings');
+      debugPrint('Received settings from main window: $settingsJson');
+
+      if (settingsJson != null && settingsJson is Map<String, dynamic>) {
+        setState(() {
+          _settings = Settings.fromJson(settingsJson);
+          _isLoading = false;
+        });
+      } else {
+        // Fallback to default settings
+        setState(() {
+          _settings = const Settings();
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       debugPrint('Error loading settings: $e');
       setState(() {
@@ -45,20 +54,35 @@ class _SettingsWindowAppState extends State<SettingsWindowApp> {
   }
 
   void _handleSettingsSave(Settings newSettings) async {
-    await _settingsService.saveSettings(newSettings);
-    await _closeWindow();
+    debugPrint('=== SAVE SETTINGS START ===');
+    debugPrint('_SettingsWindowAppState: _handleSettingsSave called');
+    debugPrint('_SettingsWindowAppState: newSettings = ${newSettings.toJson()}');
+    try {
+      debugPrint('_SettingsWindowAppState: Calling save_settings on main window...');
+      final result = await DesktopMultiWindow.invokeMethod(0, 'save_settings', newSettings.toJson());
+      debugPrint('_SettingsWindowAppState: save_settings returned: $result');
+
+      debugPrint('_SettingsWindowAppState: Now calling _closeWindow...');
+      await _closeWindow();
+      debugPrint('_SettingsWindowAppState: _closeWindow completed');
+      debugPrint('=== SAVE SETTINGS END (SUCCESS) ===');
+    } catch (e, stackTrace) {
+      debugPrint('=== SAVE SETTINGS ERROR ===');
+      debugPrint('ERROR in _handleSettingsSave: $e');
+      debugPrint('Stack trace: $stackTrace');
+      debugPrint('=== SAVE SETTINGS END (ERROR) ===');
+    }
   }
 
   Future<void> _closeWindow() async {
     // Notify main window that settings window is closing
     try {
       await DesktopMultiWindow.invokeMethod(0, 'settings_window_closed');
+      debugPrint('Notified main window of settings closure');
     } catch (e) {
       debugPrint('Error notifying main window: $e');
     }
-
-    // Close this window using the main window's ID (0) to send close request
-    // The window will be closed by the main window
+    // The main window will close this window via settingsWindowService
   }
 
   @override
@@ -129,6 +153,8 @@ class _SettingsWindowContentState extends State<SettingsWindowContent> {
   }
 
   void _handleSave() {
+    debugPrint('SettingsWindowContent: Save button clicked, saving settings...');
+    debugPrint('SettingsWindowContent: Current settings: ${_settings.toJson()}');
     widget.onSave(_settings);
   }
 
@@ -282,6 +308,66 @@ class _SettingsWindowBodyState extends State<SettingsWindowBody> {
               ),
             ],
           ),
+
+          const SizedBox(height: 24),
+
+          _buildLabel('Volume Control During Recording'),
+          const SizedBox(height: 8),
+          CheckboxListTile(
+            title: const Text(
+              'Reduce system volume during recording',
+              style: TextStyle(color: Colors.white),
+            ),
+            subtitle: const Text(
+              'Automatically lower system volume to minimize background audio interference',
+              style: TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+            value: _settings.duckVolumeDuringRecording,
+            onChanged: (value) {
+              _updateSettings(_settings.copyWith(
+                duckVolumeDuringRecording: value ?? true,
+              ));
+            },
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+          ),
+
+          if (_settings.duckVolumeDuringRecording) ...[
+            const SizedBox(height: 16),
+            _buildLabel('Volume level during recording'),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Slider(
+                    value: _settings.volumeDuckPercentage,
+                    min: 0.0,
+                    max: 0.3,
+                    divisions: 30,
+                    label: '${(_settings.volumeDuckPercentage * 100).round()}%',
+                    onChanged: (value) {
+                      _updateSettings(_settings.copyWith(volumeDuckPercentage: value));
+                    },
+                  ),
+                ),
+                SizedBox(
+                  width: 60,
+                  child: Text(
+                    '${(_settings.volumeDuckPercentage * 100).round()}%',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                ),
+              ],
+            ),
+            const Padding(
+              padding: EdgeInsets.only(left: 12.0),
+              child: Text(
+                'Original volume will be automatically restored after recording',
+                style: TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+            ),
+          ],
 
           const SizedBox(height: 32),
 
@@ -540,6 +626,43 @@ class _SettingsWindowBodyState extends State<SettingsWindowBody> {
             controlAffinity: ListTileControlAffinity.leading,
           ),
 
+          const SizedBox(height: 16),
+
+          _buildLabel('App Visibility'),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<DockVisibilityMode>(
+            value: _settings.dockVisibilityMode,
+            onChanged: (value) {
+              if (value != null) {
+                _updateSettings(_settings.copyWith(dockVisibilityMode: value));
+              }
+            },
+            dropdownColor: const Color(0xFF2D2D2D),
+            style: const TextStyle(color: Colors.white),
+            decoration: _inputDecoration(),
+            items: const [
+              DropdownMenuItem(
+                value: DockVisibilityMode.menuBarOnly,
+                child: Text('Menu Bar Only'),
+              ),
+              DropdownMenuItem(
+                value: DockVisibilityMode.dockOnly,
+                child: Text('Dock Only'),
+              ),
+              DropdownMenuItem(
+                value: DockVisibilityMode.both,
+                child: Text('Both Menu Bar and Dock'),
+              ),
+            ],
+          ),
+          const Padding(
+            padding: EdgeInsets.only(top: 8.0, left: 12.0),
+            child: Text(
+              'Choose where the app icon appears',
+              style: TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+          ),
+
           const SizedBox(height: 32),
 
           // ADVANCED SECTION
@@ -616,6 +739,19 @@ class _SettingsWindowBodyState extends State<SettingsWindowBody> {
             controlAffinity: ListTileControlAffinity.leading,
           ),
 
+          const SizedBox(height: 24),
+
+          _buildLabel('Custom Dictionary'),
+          const SizedBox(height: 4),
+          const Padding(
+            padding: EdgeInsets.only(left: 12.0, bottom: 8.0),
+            child: Text(
+              'Add domain-specific terms for better recognition (e.g., "MacBook", "Kubernetes")',
+              style: TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+          ),
+          _buildCustomTermsField(),
+
           const SizedBox(height: 32),
 
           _buildLabel('Default Paste Action'),
@@ -661,6 +797,77 @@ class _SettingsWindowBodyState extends State<SettingsWindowBody> {
         fontWeight: FontWeight.w500,
         color: Colors.white70,
       ),
+    );
+  }
+
+  Widget _buildCustomTermsField() {
+    final textController = TextEditingController();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Display current terms as chips
+        if (_settings.customTerms.isNotEmpty)
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _settings.customTerms.map((term) {
+              return Chip(
+                label: Text(term, style: const TextStyle(color: Colors.white)),
+                deleteIcon: const Icon(Icons.close, size: 18, color: Colors.white70),
+                onDeleted: () {
+                  final updatedTerms = List<String>.from(_settings.customTerms);
+                  updatedTerms.remove(term);
+                  _updateSettings(_settings.copyWith(customTerms: updatedTerms));
+                },
+                backgroundColor: const Color(0xFF3D3D3D),
+              );
+            }).toList(),
+          ),
+        if (_settings.customTerms.isNotEmpty) const SizedBox(height: 12),
+
+        // Input field to add new terms
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: textController,
+                style: const TextStyle(color: Colors.white),
+                decoration: _inputDecoration().copyWith(
+                  hintText: 'Add a custom term...',
+                  hintStyle: const TextStyle(color: Colors.white38),
+                ),
+                onSubmitted: (value) {
+                  if (value.trim().isNotEmpty && !_settings.customTerms.contains(value.trim())) {
+                    final updatedTerms = List<String>.from(_settings.customTerms);
+                    updatedTerms.add(value.trim());
+                    _updateSettings(_settings.copyWith(customTerms: updatedTerms));
+                    textController.clear();
+                  }
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () {
+                final value = textController.text;
+                if (value.trim().isNotEmpty && !_settings.customTerms.contains(value.trim())) {
+                  final updatedTerms = List<String>.from(_settings.customTerms);
+                  updatedTerms.add(value.trim());
+                  _updateSettings(_settings.copyWith(customTerms: updatedTerms));
+                  textController.clear();
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              child: const Text('Add'),
+            ),
+          ],
+        ),
+      ],
     );
   }
 

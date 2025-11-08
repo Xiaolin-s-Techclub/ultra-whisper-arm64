@@ -65,13 +65,15 @@ class PostProcessingOptions {
   final bool smartCaps;
   final bool punctuation;
   final bool disfluencyCleanup;
-  
+  final List<String>? customTerms; // Custom dictionary for domain-specific terms
+
   const PostProcessingOptions({
     this.smartCaps = true,
     this.punctuation = true,
     this.disfluencyCleanup = true,
+    this.customTerms,
   });
-  
+
   factory PostProcessingOptions.fromJson(Map<String, dynamic> json) => _$PostProcessingOptionsFromJson(json);
   Map<String, dynamic> toJson() => _$PostProcessingOptionsToJson(this);
 }
