@@ -72,9 +72,9 @@ Open **Settings** from the menu bar to customize:
 UltraWhisper uses a hybrid architecture to deliver fast, private transcription:
 
 1. **Frontend**: Flutter macOS app provides the native UI and system integration
-2. **Backend**: Python service running [faster-whisper](https://github.com/SYSTRAN/faster-whisper) with CTranslate2
-3. **GPU Acceleration**: Metal backend leverages Apple Silicon's Neural Engine for real-time performance
-4. **Model**: Whisper large-v3 model stored locally in `~/Library/Application Support/UltraWhisper/models/`
+2. **Backend**: Python service running [whisper.cpp](https://github.com/ggerganov/whisper.cpp) with Metal GPU acceleration
+3. **GPU Acceleration**: Metal backend leverages Apple Silicon's GPU for real-time performance
+4. **Model**: Whisper large-v3-turbo (GGML format) stored locally in the app bundle
 5. **Communication**: WebSocket connection on localhost for low-latency audio streaming
 
 **Privacy First**: Everything runs locally on your Mac. No cloud services, no telemetry, no data collection.
@@ -176,9 +176,9 @@ ultra-whisper-arm64/
 ### Key Technologies
 
 - **Frontend**: Flutter, Swift
-- **Backend**: Python, faster-whisper, CTranslate2
+- **Backend**: Python, whisper.cpp (Metal GPU optimized)
 - **Communication**: WebSocket (JSON + binary audio)
-- **GPU Acceleration**: Metal (via CTranslate2)
+- **GPU Acceleration**: Metal (via whisper.cpp)
 - **Audio Format**: 16kHz PCM, 16-bit mono
 
 ## Contributing
@@ -203,7 +203,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 - [OpenAI Whisper](https://github.com/openai/whisper) - The foundation model
-- [faster-whisper](https://github.com/SYSTRAN/faster-whisper) - Optimized inference engine
+- [whisper.cpp](https://github.com/ggerganov/whisper.cpp) - High-performance C++ inference with Metal GPU support
 - [Flutter](https://flutter.dev) - Cross-platform UI framework
 
 ---
